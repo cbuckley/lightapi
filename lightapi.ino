@@ -14,6 +14,16 @@ Adafruit_NeoPixel leds = Adafruit_NeoPixel(LED_COUNT, PIN, NEO_GRB + NEO_KHZ800)
 WebServer webserver("/set", 80);
 static uint8_t mac[6] = { 0x02, 0xAA, 0xBB, 0xCC, 0x00, 0x22 };
 
+struct transPixel {
+  int led;
+  int r;
+  int g;
+  int b;
+  int transType;
+  struct transPixel *next;
+};
+typedef struct transPixel TRANSPIXEL;
+typedef TRANSPIXEL *TRANSPIXELPTR;
 void setup()
 {
   leds.begin();  // Call this to start up the LED strip.
@@ -38,15 +48,43 @@ void loop()
   webserver.processConnection();
 }
 
-
+void buildPixelTransition(int pixel,int r,int g,int b,int transType,struct transPixel *curPixel) {
+  curPixel->led = pixel;
+  curPixel->r = r;
+  curPixel->g = g;
+  curPixel->b = b;
+  curPixel->transType = 0;
+  Serial.println("Set pixel ");
+  Serial.print(curPixel->led);
+  Serial.print("---");
+  curPixel->next = new transPixel;
+}
+void transitionPixels(struct transPixel *root) {
+  
+  struct transPixel *curRootPixel;
+  uint32_t color;
+  while(curRootPixel != 0) {
+    color = leds.Color(r,g,b);
+    leds.setPixelColor(curRootPixel->led, color);
+    curRootPixel = curRootPixel->next;
+    leds.show();
+  }
+  
+}
 void rgbCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
 {
   if (type == WebServer::POST)
   {
     bool repeat;
     char name[16], value[16];
+    struct transPixel *rootPixel;
+    struct transPixel *curRootPixel;
+    rootPixel = new transPixel;
+    rootPixel->next = 0; //Set the next to a nullpointer so we know when we are at the end.
+    curRootPixel = rootPixel; //Set the current root placeholder to the root to initialise the linked list.
     do
     {
+      int r=0,g=0,b=0,led=0,transType=0;
       repeat = server.readPOSTparam(name, 16, value, 16);
       if (strcmp(name, "red") == 0)
       {
@@ -60,11 +98,20 @@ void rgbCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
       {
         b = strtoul(value, NULL, 10);
       }
+
+      buildPixelTransition(1,r,g,b,transType,curRootPixel);
+      for(int pix = 0; pix < 50; pix++)  {
+        Serial.print(pix);
+        //Serial.println(r);
+        //buildPixelTransition(pix,r,g,b,transType,curRootPixel);
+      }
+            
       
     } while (repeat);
+    
     server.httpSeeOther("/set");
-    colorAll(leds.Color(r, g, b)); // Blue
-    int ledpattern[3][3] = {{r,g,b},{r,g,b},{r,g,b}};
+   // colorAll(leds.Color(r, g, b));
+    transitionPixels(rootPixel);
 
     return;
   }
@@ -95,8 +142,7 @@ void rgbCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
     server.printP(message);
   }
 }
-void colorPixels(int **) {
-  for(
+void colorPixels() {
 }
 void colorAll(uint32_t c) {
   for(uint16_t i=0; i<leds.numPixels(); i++) {
@@ -111,3 +157,4 @@ void colorWipe(uint32_t c, uint8_t wait) {
     delay(wait);
   }
 }
+
