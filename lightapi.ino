@@ -56,8 +56,10 @@ void buildPixelTransition(int pixel,int r,int g,int b,int transType,struct trans
   curPixel->transType = 0;
   Serial.println("Set pixel ");
   Serial.print(curPixel->led);
-  Serial.print("---");
+  Serial.println("---");
   curPixel->next = new transPixel;
+  curPixel = curPixel->next;
+  curPixel->next = 0;
 }
 void transitionPixels(struct transPixel *root) {
   
@@ -65,6 +67,9 @@ void transitionPixels(struct transPixel *root) {
   uint32_t color;
   while(curRootPixel != 0) {
     color = leds.Color(r,g,b);
+    Serial.println("transitioning Pixel");
+    Serial.print(curRootPixel->led);
+    Serial.println("--");
     leds.setPixelColor(curRootPixel->led, color);
     curRootPixel = curRootPixel->next;
     leds.show();
@@ -101,7 +106,7 @@ void rgbCmd(WebServer &server, WebServer::ConnectionType type, char *, bool)
 
       buildPixelTransition(1,r,g,b,transType,curRootPixel);
       for(int pix = 0; pix < 50; pix++)  {
-        Serial.print(pix);
+        //Serial.print(pix);
         //Serial.println(r);
         //buildPixelTransition(pix,r,g,b,transType,curRootPixel);
       }
